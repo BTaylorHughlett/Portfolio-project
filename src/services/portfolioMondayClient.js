@@ -9,6 +9,7 @@
 const MONDAY_API_URL = "https://api.monday.com/v2";
 
 // Setting up values from .env file
+// Setting up values from .env file to use in this file safely without exposing the values
 const config = {
   token: import.meta.env.VITE_MONDAY_TOKEN,
   boardId: import.meta.env.VITE_MONDAY_BOARD_ID,
@@ -147,6 +148,8 @@ const mapColumnsValues = (columnValues = []) => {
  * Function to handle returning data from monday.com to display to the user!
  */
 export const fetchPortfolioItems = async () => {
+  // Query is used to GET data
+  // Needs the boardId variable
   const query = `
     query GetPortfolioItems($boardId: [ID!]) {
       boards(ids: $boardId) {
@@ -206,3 +209,75 @@ export const fetchPortfolioItems = async () => {
     ...mapColumnsValues(item.column_values),
   }));
 };
+
+/**
+ * CREATE
+ * Create a brand new item in monday.com.
+ *
+ * Vue component collects data (the form), this function sends the data to the API.
+ */
+export const createPortfolioItem = async (item) => {
+  // Mutation is used when making a change to the database: CREATE, PUT, PATCH
+  // Mutation is used when making a change to the database: CREATE, PUT, PATCH, DELETE (all make changes to data)
+  // Needs the variables boardId, itemName, and columnValues
+    const mutation = `
+    mutation CreatePortfolioItem($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
+      create_item(board_id: $boardId, item_name: $itemName, column_values: $columnValues) {
+        id
+      }
+    }
+  `;
+
+  // Passing the query and the variables needed in the query to our makeRequest() function
+  await makeRequest(mutation, {
+    boardId: config.boardId,
+    itemName: item.title,
+    columnValues: JSON.stringify(toColumnValuesObject(item))
+  });
+};
+
+/**
+ * UPDATE
+ * Params:
+ * - itemID, so monday knows which item to change
+ * - item, contain all of the new/old values so monday knows WHAT to replace
+ */
+export const updatePortfolioItem = async (itemId, item) => {
+  // Mutation is used when making a change to the database: CREATE, PUT, PATCH, DELETE (all make changes to data)
+  // Needs the variables boardId, itemId, itemName, and columnValues
+    const mutation = `
+    mutation UpdatePortfolioItem($boardId: ID!, $itemId: ID!, $itemName: String!, $columnValues: JSON!) {
+      change_multiple_column_values(board_id: $boardId, item_id: $itemId, column_values: $columnValues) {
+        id
+      }
+      change_simple_column_value(board_id: $boardId, item_id: $itemId, column_id: "name", value: $itemName) {
+        id
+      }
+    }
+  `;
+
+  // Passing the query and the variables needed in the query to our makeRequest() function
+  await makeRequest(mutation, {
+    boardId: config.boardId,
+    itemId,
+    itemName: item.title,
+    columnValues: JSON.stringify(toColumnValuesObject(item))
+  });
+};
+
+// DELETE function. Handles deleting a row of data based on the entered item id.
+export const deletePortfolioItem = async (itemId) => {
+  // Mutation is used when making a change to the database: CREATE, PUT, PATCH, DELETE (all make changes to data)
+  // Needs the variables itemId
+    const mutation = `
+    mutation DeletePortfolioItem($itemId: ID!) {
+      delete_item(item_id: $itemId) {
+        id
+      }
+    }
+  `;
+
+  // Passing the query and the variables needed in the query to our makeRequest() function
+  await makeRequest(mutation, { itemId });
+};
+  
